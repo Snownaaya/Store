@@ -8,44 +8,67 @@ import (
 )
 
 type Shop struct {
-	customer *Customer
-	seller   *Seller
-	commands map[string]func()
-	isWork   bool
+	customer    *Customer
+	seller      *Seller
+	commands    map[string]func()
+	isWork      bool
+	commandMenu CommandMenu
 }
 
-const (
-	ShowInfo         string = "1"
-	SellCommand      string = "2"
-	InventoryCommand string = "3"
-	ExitCommand      string = "4"
-)
+type Command struct {
+	InputNeeded string
+	Description string
+	Action      func()
+}
+
+type CommandMenu struct {
+	commands []Command
+}
 
 func NewShop() *Shop {
 	shop := &Shop{
-		customer: newCustomer(),
-		seller:   NewSeller(),
+		customer:    newCustomer(),
+		seller:      NewSeller(),
+		commandMenu: CommandMenu{},
+		isWork:      true,
 	}
 
-	fmt.Println("1 - ShowPotions")
-	fmt.Println("2 - Sell")
-	fmt.Println("3 - Inventory")
-	fmt.Println("4 - Exit")
+	menu := CommandMenu{}
+
+	menu.add(Command{
+		InputNeeded: "1",
+		Description: "ShowInfo",
+		Action:      func() { shop.seller.Show() },
+	})
+
+	menu.add(Command{
+		InputNeeded: "2",
+		Description: "Sell",
+		Action:      func() { shop.sellProductFlow() },
+	})
+
+	menu.add(Command{
+		InputNeeded: "3",
+		Description: "Inventory",
+		Action:      func() { shop.customer.Show() },
+	})
+
+	menu.add(Command{
+		InputNeeded: "4",
+		Description: "Exit",
+		Action:      func() { shop.isWork = false },
+	})
+
+	shop.commandMenu = menu
+	shop.commands = menu.toActionMap()
 
 	return shop
 }
 
 func (s *Shop) Run() {
-
-	for s.isWork == true {
+	for s.isWork {
+		s.commandMenu.printMenu()
 		input := extensionflow.UserInput("Enter command: ")
-
-		s.commands = map[string]func(){
-			ShowInfo:         func() { s.seller.Show() },
-			SellCommand:      func() { s.sellProductFlow() },
-			InventoryCommand: func() { s.customer.Show() },
-			ExitCommand:      func() { s.isWork = false },
-		}
 
 		if cmd, ok := s.commands[input]; ok {
 			cmd()
@@ -53,6 +76,25 @@ func (s *Shop) Run() {
 			fmt.Println("Unknown command")
 		}
 	}
+}
+
+func (m *CommandMenu) toActionMap() map[string]func() {
+	actionMap := make(map[string]func())
+	for _, cmd := range m.commands {
+		actionMap[cmd.InputNeeded] = cmd.Action
+	}
+
+	return actionMap
+}
+
+func (c *CommandMenu) printMenu() {
+	for _, cmd := range c.commands {
+		fmt.Println(cmd.InputNeeded, cmd.Description)
+	}
+}
+
+func (c *CommandMenu) add(command Command) {
+	c.commands = append(c.commands, command)
 }
 
 func (s *Shop) sellProductFlow() {
